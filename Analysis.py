@@ -302,7 +302,7 @@ for fold, indices in enumerate(fold_val_indices):
 # DataFrame generation
 data = pd.DataFrame(list(idx_to_accuracy.items()), columns=["idx", "accuracy"])
 
-# 상관계수 계산
+# calculate the correlation
 correlation = data["idx"].corr(data["accuracy"])
 print(f"Correlation between idx and accuracy: {correlation:.2f}")
 
