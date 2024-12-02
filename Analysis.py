@@ -293,7 +293,7 @@ fold_val_indices = []
 for fold, (train_index, val_index) in enumerate(kfold.split(unique_ID)):
     fold_val_indices.append(val_index)
 print(fold_val_indices)
-    #%%
+
 idx_to_accuracy = {}
 for fold, indices in enumerate(fold_val_indices):
     for idx in indices:
