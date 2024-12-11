@@ -36,7 +36,7 @@ This project classifies and predicts event types from tweets related to the FIFA
 Clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/world-cup-event-detection.git
+git clone https://github.com/98kgb/world-cup-event-detection.git
 cd world-cup-event-detection
 ```
 
