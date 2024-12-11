@@ -76,7 +76,7 @@ world-cup-event-detection/
    - Description: Fine-tunes the DNN model using K-fold cross-validation. Results are saved in `model/optimization/`.
 
 ### 3. **Model Training**
-   - Script: `DNN_classifier.py`
+   - Script: `DNN_train.py`
    - Description: Trains the DNN model using the best hyperparameters. The trained model is saved in `model/`.
 
 ### 4. **Evaluation**
