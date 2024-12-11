@@ -154,7 +154,7 @@ python Analysis.py
 
 ## Contributors
 
-- **Gibaek**: Author of `Analysis.py` and contributor to the project framework.
+- **Gibaek kim**: Author of all the files and contributor to the project framework.
 
 ---
 
