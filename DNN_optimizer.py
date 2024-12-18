@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-This code is for optimizing DNN structure and hyperparameters
+This code is for optimizing the structure and hyperparameters of a Deep Neural Network (DNN).
 
-@author: Gibaek
+It performs hyperparameter tuning using K-fold cross-validation.
 """
 import os
 import sys
-
+# Add the current directory to the system path for importing custom modules
 dir_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(dir_path)
-
 import numpy as np
 import pandas as pd
 import torch
 import torch.optim as optim
-
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, TensorDataset
 from Deep_Learning_class import DNN_structure
@@ -22,20 +20,18 @@ from Deep_Learning_class import DNN_structure
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using {device} device\n")
 
-#%% Dataset preprocessing
+#%% Dataset preprocessing and hyperparameter optimization setup
 
-# Optimization hyperparameters
-k = 5 # for K-fold validation
-weight = True
-factor = 10 # Embedding factor
-save = True
-Early = True
-patience = 300
-epoch = 300
-include_count = True
-# enbedded_method = 0 # with keyword stored in embedded_0_factor_.npy
-enbedded_method = 1 # with keyword stored in embedded_1_factor_.npy
+# K-fold cross-validation and hyperparameter settings
+k = 5 # Number of folds for cross-validation
+weight_factor = 10 # Embedding factor for weighting
+save = True # Whether to save models and results
+Early = True # Whether to apply early stopping
+patience = 300 # Number of epochs to wait for improvement before early stopping
+epoch = 300 # Maximum number of training epochs
+include_count = True # Whether to include additional count-based features in the dataset
 
+# Define hyperparameter candidates for optimization
 candi1 = ['norm', "min-max", 'mean-std', "MaxAbs"] # normalization
 candi2 = ['optim', 'Adam', 'SGD', 'RMSprop', 'Adagrad'] # optimizer
 candi3 = ['batch', 8, 16, 32, 64] # batch size
@@ -43,32 +39,33 @@ candi4 = ['structure', [1024, 512, 256, 128], [512, 256, 128], [512, 256], [512]
 candi5 = ['dropout',0, 0.1, 0.2, 0.3, 0.4, 0.5] # dropout rate
 candi6 = ['lr',1e-5, 1e-4, 1e-3, 1e-2] # Learning rate
 
-candidates = [candi1, candi2, candi3, candi4, candi5, candi6]
+# Combine all candidates into a list for iteration
+candidates = [candi1]
 
-trial_num = 3
+# Trial number for organizing results
+trial_num = 4
 
-if os.path.exists(dir_path + f'\\model\\optimization\\trial_{trial_num}'):
-    pass
-else:
+# Ensure the directories for saving models and information exist
+if not os.path.exists(dir_path + f'\\model\\optimization\\trial_{trial_num}'):
     os.makedirs(dir_path + f'\\model\\optimization\\trial_{trial_num}')
-    print(f'{dir_path} + \\model\\optimization\\trial_{trial_num} created!!')
-
-if os.path.exists(dir_path + f'\\model\\optimization\\info\\trial_{trial_num}'):
-    pass
-else:
+if not os.path.exists(dir_path + f'\\model\\optimization\\info\\trial_{trial_num}'):
     os.makedirs(dir_path + f'\\model\\optimization\\info\\trial_{trial_num}')
-   
+
+# Iterate over hyperparameter candidates
 for candidate in candidates:
+    # Default hyperparameter settings
+    structure = [512, 256, 128] # Default DNN structure
+    norm = "min-max" # Default normalization method
+    batch_size = 8 # Default batch size
+    lr = 1e-3 # Default learning rate
+    dropout = 0.1 # Default dropout rate
+    optimizer = 'Adam' # Default optimizer
+    default = [structure, norm, batch_size, lr, dropout, optimizer]
     
-    structure = [512, 256, 128]
-    norm = "mean-std"
-    batch_size = 8 # new optimzed parameter (previous : 32, 16)
-    lr = 1e-3
-    dropout = 0.1
-    default = [structure, norm, batch_size, lr, dropout]
+    # Iterate over the values for the current hyperparameter candidate
     for ii in range(1, len(candidate)):    
         
-        # Sweep the hyperparameter
+        # Update the current hyperparameter
         if candidate[0] == 'norm':
             norm = candidate[ii]
         elif candidate[0] == 'batch':
@@ -80,15 +77,17 @@ for candidate in candidates:
         elif candidate[0] == 'lr':
             lr = candidate[ii]
         
+        # Load dataset and additional features if specified
         if include_count:
-            X1 = np.load(dir_path + f'\\embedded_dataset\\embedded_{enbedded_method}_X_factor_{factor}.npy')
+            X1 = np.load(dir_path +  f'\\embedded_dataset\\embedded_X_factor_{weight_factor}.npy')
             X2 = np.load(dir_path + '\\embedded_dataset\\embedded_X_count_ratio.npy')
-            X = np.hstack([X1,X2])
+            X = np.hstack([X1,X2]) # Combine feature datasets
         else:
-            X = np.load(dir_path + f'\\embedded_dataset\\embedded_{enbedded_method}_X_factor_{factor}.npy')
+            X = np.load(dir_path + f'\\embedded_dataset\\embedded_X_factor_{weight_factor}.npy')
             
-        y = np.load(dir_path + '\\embedded_dataset\\embedded_Y.npy')
+        y = np.load(dir_path + '\\embedded_dataset\\embedded_Y.npy') # Load labels
         
+        # Apply the selected normalization method
         if norm == 'min-max':
             X_min, X_max = X.min(axis = 0), X.max(axis = 0) 
             X = (X-X_min) / (X_max-X_min)
@@ -102,11 +101,11 @@ for candidate in candidates:
             print("Inappropriate normalization method")
             break
         
+        # Initialize K-fold cross-validation
         kfold = KFold(n_splits=k, shuffle=True, random_state=2)
-    
-        # K-Fold Validation
         fold_results = []
         
+        # Perform K-fold validation
         for fold, (train_index, test_index) in enumerate(kfold.split(X)):
             
             print(f"\nOptimization for {candidate[0]} fold {fold+1}/{k}\n")
@@ -117,22 +116,22 @@ for candidate in candidates:
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
             
+            # Convert data to PyTorch tensors
             X_train, X_test = torch.from_numpy(X_train).float().to(device), torch.from_numpy(X_test).float().to(device)
             y_train, y_test = torch.from_numpy(y_train).float().to(device), torch.from_numpy(y_test).float().to(device)
     
-            # convert it the tensor dataset
+            # Create datasets and data loaders
             train_dataset = TensorDataset(X_train, y_train)
             test_dataset = TensorDataset(X_test, y_test)
-                
-            # Define Batch size and DataLoader
             train_loader = DataLoader(train_dataset, batch_size, shuffle=True)
             val_loader = DataLoader(test_dataset, batch_size)
             
-            # itialize model, loss function and optimizer
+            # Initialize the model, loss function, and optimizer
             model = DNN_structure(input_size = X.shape[1], hidden_layers = structure, output_size=1, dropout_prob=dropout)
             criterion = torch.nn.BCEWithLogitsLoss()
             scheduler = False
             
+            # Update optimizer based on the candidate
             if candidate[0] == 'optim':
                 if ii == 1:
                     optimizer = optim.AdamW(model.parameters(), lr = lr)
@@ -143,17 +142,16 @@ for candidate in candidates:
                 elif ii == 4:
                     optimizer = optim.Adagrad(model.parameters(), lr = lr)
             else:
-                optimizer = optim.AdamW(model.parameters(), lr = lr)
+                optimizer = optim.Adagrad(model.parameters(), lr = lr)
             
             
-            # train
-            
+            # Train the model
             model.train(train_loader, val_loader, model, optimizer, scheduler,
                                                criterion, patience,
                                                path = dir_path + f'\\model\\optimization\\trial_{trial_num}\\{model_name}.pt',
                                                Early = Early, epoch = epoch)
             
-            # save the train results
+            # Save training results
             train_info = np.zeros([epoch, 4])
             train_info[:,0], train_info[:,1], train_info[:,2], train_info[0,3] = model.train_loss, model.val_loss, model.val_acc, model.train_time
             train_info= pd.DataFrame(train_info, columns=['Train loss', 'Val loss', 'Val acc', 'train_time'])
@@ -166,8 +164,9 @@ for candidate in candidates:
         np.savetxt(dir_path + f'\\model\\optimization\\info\\trial_{trial_num}\\Optim_{candidate[0]}_{candidate[ii]}.csv',
                    fold_results, delimiter = ',')
 
-#%% Default 
+# Save the default configuration
 default[0] = str(default[0])
 default = [default]
-default_info = pd.DataFrame(default, columns= ['structure', 'Normalization', 'Batch_size', 'learning rate', 'Drop out'])
+default_info = pd.DataFrame(default,
+                            columns= ['structure', 'Normalization', 'Batch_size', 'learning rate', 'Drop out', 'Optim'])
 default_info.to_csv(dir_path + f'\\model\\optimization\\trial_{trial_num}\\default_setting.csv')
